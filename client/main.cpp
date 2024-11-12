@@ -10,8 +10,7 @@ int main(int argc, char const *argv[])
         return -1;
     }
 
-    SocketClient client;
-    client.connectServer(std::string(argv[1]), std::stoi(std::string(argv[2])));
+    SocketClient client(std::string(argv[1]), std::stoi(std::string(argv[2])));
     client.run();
     return 0;
 }

@@ -20,10 +20,9 @@ class SocketClient {
     static ascii::Ascii font;
 
   public:
-    SocketClient();
+    SocketClient(std::string ip, int port);
     ~SocketClient();
     void run();
-    static void connectServer(std::string ip, int port);
     static void* handleListenServer(void* arg);
     static void* handleCommand(void* arg);
 };

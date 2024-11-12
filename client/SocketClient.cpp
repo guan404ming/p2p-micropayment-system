@@ -10,32 +10,32 @@ bool SocketClient::running = true;
 bool SocketClient::waiting = false;
 ascii::Ascii SocketClient::font = ascii::Ascii(ascii::FontName::sevenstar);
 
-SocketClient::SocketClient()
+SocketClient::SocketClient(std::string ip, int port)
 {
-    if ((serverSocketFd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    {
-        throw std::runtime_error("Socket Creation Error");
-    }
-}
-
-SocketClient::~SocketClient()
-{
-    close(serverSocketFd);
-}
-
-void SocketClient::connectServer(std::string ip, int port)
-{
-    std::cout << "Setting up server: " << ip << " " << port << std::endl;
     serverIp = ip;
     serverPort = port;
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_port = htons(serverPort);
     serverAddress.sin_addr.s_addr = inet_addr(serverIp.c_str());
 
+    // Create a socket
+    if ((serverSocketFd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        throw std::runtime_error("Socket Creation Error");
+    }
+
+    // Connect to server
     if (connect(serverSocketFd, (sockaddr *)&serverAddress, sizeof(serverAddress)) == -1)
     {
         throw std::runtime_error("Connection Error");
     }
+
+    std::cout << "Connected to server" << ip << " " << port << std::endl;
+}
+
+SocketClient::~SocketClient()
+{
+    close(serverSocketFd);
 }
 
 void SocketClient::run()
@@ -71,7 +71,8 @@ void *SocketClient::handleCommand(void *arg)
         std::cout << "\nEnter command: ";
         getline(std::cin, option);
 
-        std::cout << "========================================\n" << std::endl;
+        std::cout << "========================================\n"
+                  << std::endl;
 
         if (option == "REGISTER" or option == "a")
         {
@@ -123,7 +124,8 @@ void *SocketClient::handleCommand(void *arg)
         {
             send(serverSocketFd, cmd.c_str(), cmd.size(), 0);
             waiting = true;
-            while (waiting);
+            while (waiting)
+                ;
         }
     }
 
