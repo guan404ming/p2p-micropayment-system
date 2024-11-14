@@ -18,8 +18,8 @@ class SocketClient {
     static sockaddr_in serverAddress;
     static int serverSocketFd;
     static bool running;
-    static bool waiting;
     static ascii::Ascii font;
+    static std::string currentUser;
 
   public:
     SocketClient(std::string ip, int port);

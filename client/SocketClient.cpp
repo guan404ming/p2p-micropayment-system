@@ -7,8 +7,8 @@ int SocketClient::serverPort = 8000;
 sockaddr_in SocketClient::serverAddress;
 int SocketClient::serverSocketFd;
 bool SocketClient::running = true;
-bool SocketClient::waiting = false;
 ascii::Ascii SocketClient::font = ascii::Ascii(ascii::FontName::sevenstar);
+std::string SocketClient::currentUser = "";
 
 SocketClient::SocketClient(std::string ip, int port)
 {
@@ -42,7 +42,7 @@ void *SocketClient::createListener(void *serverPort)
 {
     std::string *port = static_cast<std::string *>(serverPort);
     int clientSocketFd = 0;
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    int socketFd = socket(AF_INET, SOCK_STREAM, 0);
 
     // socket connection
     struct sockaddr_in serverInfo, clientInfo;
@@ -52,26 +52,30 @@ void *SocketClient::createListener(void *serverPort)
     serverInfo.sin_addr.s_addr = INADDR_ANY;
     serverInfo.sin_port = htons(std::stoi((char *)port->c_str()));
 
-    if (bind(sockfd, (struct sockaddr *)&serverInfo, sizeof(serverInfo)) < 0)
+    if (bind(socketFd, (struct sockaddr *)&serverInfo, sizeof(serverInfo)) < 0)
     {
         std::cerr << "Error: Couldn't bind the server socket! Error: " << strerror(errno) << std::endl;
     }
-    listen(sockfd, 5);
-    std::cout << "Listening on port " << port->c_str() << std::endl;
-
-    while (true)
+    else
     {
-        clientSocketFd = accept(sockfd, (struct sockaddr *)&clientInfo, &addrlen);
+        listen(socketFd, 5);
+        std::cout << "Listening on port " << port->c_str() << std::endl;
 
-        // Receive message from client A
-        char recvMessage[20] = {0};
-        recv(clientSocketFd, recvMessage, sizeof(recvMessage), 0);
+        while (running)
+        {
+            clientSocketFd = accept(socketFd, (struct sockaddr *)&clientInfo, &addrlen);
 
-        // Send to server
-        send(serverSocketFd, recvMessage, sizeof(recvMessage), 0);
+            // Receive message from client A
+            char recvMessage[20] = {0};
+            recv(clientSocketFd, recvMessage, sizeof(recvMessage), 0);
 
-        close(clientSocketFd);
+            // Send to server
+            send(serverSocketFd, recvMessage, sizeof(recvMessage), 0);
+            close(clientSocketFd);
+        }
     }
+
+    return nullptr;
 }
 
 void SocketClient::run()
@@ -102,14 +106,38 @@ void SocketClient::run()
             getline(std::cin, port);
             cmd = username + '#' + port;
 
+            // Convert port to integer with error handling
+            int portNumber;
+            try
+            {
+                if (port.find_first_not_of("0123456789") != std::string::npos)
+                {
+                    std::cout << "Invalid port" << std::endl;
+                    std::cout << "========================================" << std::endl;
+                    continue;
+                }
+                portNumber = std::stoi(port);
+            }
+            catch (const std::invalid_argument &e)
+            {
+                std::cout << "Invalid port number" << std::endl;
+                continue;
+            }
+            catch (const std::out_of_range &e)
+            {
+                std::cout << "Port number out of range" << std::endl;
+                continue;
+            }
+
             // Create a thread to listen to the port
             pthread_t thread;
             pthread_create(&thread, NULL, &createListener, &port);
+            currentUser = username;
         }
         else if (option == "LIST" || option == "c")
         {
             font.print("LIST");
-            std::cout << "\n ";
+            std::cout << " \nAmount: ";
             cmd = "List";
         }
         else if (option == "PAY" || option == "d")
@@ -117,10 +145,32 @@ void SocketClient::run()
             font.print("PAY");
             std::cout << "\nEnter payer: ";
             getline(std::cin, payerUsername);
+
+            if (currentUser == "")
+            {
+                std::cout << "\nPlease login first!" << std::endl;
+                std::cout << "========================================" << std::endl;
+                continue;
+            }
+
+            if (payerUsername != currentUser)
+            {
+                std::cout << "\nInvalid payer" << std::endl;
+                std::cout << "========================================" << std::endl;
+                continue;
+            }
+
             std::cout << "Enter payee: ";
             getline(std::cin, payeeUsername);
             std::cout << "Enter amount: ";
             getline(std::cin, amount);
+
+            if (amount.find_first_not_of("0123456789") != std::string::npos)
+            {
+                std::cout << "Invalid amount" << std::endl;
+                std::cout << "========================================" << std::endl;
+                continue;
+            }
 
             // update list
             char list_recv[20000] = {0};
@@ -188,21 +238,20 @@ void SocketClient::run()
                 {
                     std::cout << "Send Error" << std::endl;
                 }
+                else
+                {
+                    char buffer[2048] = {0};
+                    std::cout << "\n----------------------------------------\n"
+                              << std::endl;
+                    recv(serverSocketFd, buffer, sizeof(buffer), 0);
+                    std::cout << buffer << "\n----------------------------------------\n"
+                              << std::endl;
+                }
                 cmd = "List";
             }
             else
             {
                 std::cout << "Payee not found in the list" << std::endl;
-            }
-
-            if (found)
-            {
-                char buffer[2048] = {0};
-                std::cout << buffer << "\n----------------------------------------\n"
-                          << std::endl;
-                recv(serverSocketFd, buffer, sizeof(buffer), 0);
-                std::cout << buffer << "\n----------------------------------------\n"
-                          << std::endl;
             }
         }
         else if (option == "EXIT" || option == "e")
@@ -210,7 +259,6 @@ void SocketClient::run()
             font.print("EXIT");
             std::cout << std::endl;
             cmd = "Exit";
-            running = false;
         }
         else
         {
@@ -225,8 +273,13 @@ void SocketClient::run()
             send(serverSocketFd, cmd.c_str(), cmd.size(), 0);
             int bytesRead = recv(serverSocketFd, buffer, sizeof(buffer), 0);
             std::cout << buffer << std::endl;
-
             std::cout << "========================================" << std::endl;
+
+            if (option == "EXIT" || option == "e")
+            {
+                running = false;
+                break;
+            }
         }
     }
 }
