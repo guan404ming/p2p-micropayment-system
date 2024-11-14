@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <map>
+#include <cerrno>
+#include <cstring>
 #include "../lib/Ascii.h"
 
 class SocketClient { 
@@ -23,6 +25,5 @@ class SocketClient {
     SocketClient(std::string ip, int port);
     ~SocketClient();
     void run();
-    static void* handleListenServer(void* arg);
-    static void* handleCommand(void* arg);
+    static void* createListener(void* ip_port);
 };
