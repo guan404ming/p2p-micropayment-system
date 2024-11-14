@@ -2,6 +2,10 @@
 #include "SocketClient.hpp"
 #endif
 
+#include <chrono>
+#include <iomanip>
+#include <sstream>
+
 std::string SocketClient::serverIp = "127.0.0.1";
 int SocketClient::serverPort = 8000;
 sockaddr_in SocketClient::serverAddress;
@@ -78,13 +82,28 @@ void *SocketClient::createListener(void *serverPort)
     return nullptr;
 }
 
+void logCurrentTime()
+{
+    auto now = std::chrono::system_clock::now();
+    std::time_t now_c = std::chrono::system_clock::to_time_t(now);
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&now_c), "%Y-%m-%d %H:%M:%S");
+    std::cout << "[" << ss.str() << "] ";
+}
+
 void SocketClient::run()
 {
+    auto startTime = std::chrono::system_clock::now();
+    logCurrentTime();
+    std::cout << "Session started." << std::endl;
+
     while (running)
     {
         std::string option, cmd;
         std::string username, payerUsername, payeeUsername, port, amount;
-        std::cout << "\nEnter command: ";
+        std::cout << "\n";
+        logCurrentTime();
+        std::cout << "Enter command: ";
         getline(std::cin, option);
 
         std::cout << "========================================\n"
@@ -273,13 +292,17 @@ void SocketClient::run()
             send(serverSocketFd, cmd.c_str(), cmd.size(), 0);
             int bytesRead = recv(serverSocketFd, buffer, sizeof(buffer), 0);
             std::cout << buffer << std::endl;
-            std::cout << "========================================" << std::endl;
-
             if (option == "EXIT" || option == "e")
             {
+                auto endTime = std::chrono::system_clock::now();
+                std::chrono::duration<double> elapsedSeconds = endTime - startTime;
+                std::cout << "Session ended. \nDuration: " << elapsedSeconds.count() << " seconds." << std::endl;
+                std::cout << "========================================\n";
                 running = false;
                 break;
             }
+
+            std::cout << "========================================\n";
         }
     }
 }
