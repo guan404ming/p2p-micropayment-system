@@ -7,8 +7,8 @@ int SocketServer::serverPort = 8000;
 sockaddr_in SocketServer::serverAddress;
 int SocketServer::serverSocketFd;
 std::string SocketServer::serverMode;
-std::unordered_map<std::string, int> SocketServer::userAccounts;                                // 用戶帳戶 <用戶名, 餘額>
-std::unordered_map<std::string, std::pair<std::string, std::string>> SocketServer::onlineUsers; // 在線用戶 <用戶名, <ip, port>>
+std::unordered_map<std::string, int> SocketServer::userAccounts;                                                // 用戶帳戶 <用戶名, 餘額>
+std::unordered_map<std::string, std::pair<std::pair<std::string, std::string>, int>> SocketServer::onlineUsers; // 在線用戶 <用戶名, <ip, port>>
 
 SocketServer::SocketServer(int port, std::string mode)
 {
@@ -60,9 +60,9 @@ void SocketServer::run()
         {
             Client client;
             client.isLogin = false;
-            client.ip = clientAddress.sin_addr.s_addr;
+            client.ip = inet_ntoa(clientAddress.sin_addr);
             client.socketFd = clientSocketFd;
-            
+
             pthread_t threadId;
             pthread_create(&threadId, nullptr, &SocketServer::createListener, &client);
         }
@@ -71,10 +71,12 @@ void SocketServer::run()
 
 void *SocketServer::createListener(void *client)
 {
+    Client client_ = *(Client *)client;
+    std::cout << "IP" << client_.ip << std::endl;
+    
     while (true)
     {
         char recvMessage[2048] = {0};
-        Client client_ = *(Client *)client;
         recv(client_.socketFd, recvMessage, sizeof(recvMessage), 0);
 
         std::string request(recvMessage);
@@ -133,16 +135,16 @@ std::string SocketServer::processRequest(const std::string &request, Client &cli
 
         if (userAccounts.find(username) != userAccounts.end())
         {
-            if (onlineUsers.find(username) == onlineUsers.end())
+            if (onlineUsers.find(username) != onlineUsers.end())
             {
-                onlineUsers[username] = std::make_pair(client.ip, portNum);
-                client.username = username;
-                client.port = std::stoi(portNum);
-                client.isLogin = true;
+                return "220 AUTH_FAIL\r\n";
             }
             else
             {
-                return "220 AUTH_FAIL\r\n";
+                onlineUsers[username] = std::make_pair(std::make_pair(client.ip, portNum), client.socketFd);
+                client.username = username;
+                client.port = std::stoi(portNum);
+                client.isLogin = true;
             }
 
             std::string accountBalance = std::to_string(userAccounts[username]); // 獲取用戶餘額
@@ -151,7 +153,7 @@ std::string SocketServer::processRequest(const std::string &request, Client &cli
 
             for (const auto &user : onlineUsers)
             {
-                onlineUserList += user.first + "#" + user.second.first + "#" + user.second.second + "\r\n";
+                onlineUserList += user.first + "#" + user.second.first.first + "#" + user.second.first.second + "\r\n";
             }
 
             return accountBalance + "\r\n" + serverPublicKey + "\r\n" + onlineUserList;
@@ -163,11 +165,6 @@ std::string SocketServer::processRequest(const std::string &request, Client &cli
     }
     else if (request == "List")
     {
-        if (client.username.empty())
-        {
-            return "Please login first\r\n";
-        }
-
         // 返回餘額和上線用戶清單
         std::string accountBalance = std::to_string(userAccounts[client.username]); // 獲取用戶餘額
         std::string serverPublicKey = "YourServerPublicKey";                        // 伺服器的公鑰
@@ -175,7 +172,7 @@ std::string SocketServer::processRequest(const std::string &request, Client &cli
 
         for (const auto &user : onlineUsers)
         {
-            onlineUserList += user.first + "#" + user.second.first + "#" + user.second.second + "\r\n";
+            onlineUserList += user.first + "#" + user.second.first.first + "#" + user.second.first.second + "\r\n";
         }
 
         return accountBalance + "\r\n" + serverPublicKey + "\r\n" + onlineUserList;
@@ -187,33 +184,22 @@ std::string SocketServer::processRequest(const std::string &request, Client &cli
         std::string payeeName = request.substr(request.rfind('#') + 1);
         int money = std::stoi(request.substr(request.find('#') + 1, request.rfind('#') - request.find('#') - 1));
 
-        int senderSocketFd = socket(AF_INET, SOCK_STREAM, 0);
-        sockaddr_in receiverAddress;
-        receiverAddress.sin_family = AF_INET;
-        receiverAddress.sin_port = htons(std::stoi(onlineUsers[payerName].second));
-        receiverAddress.sin_addr.s_addr = inet_addr(onlineUsers[payerName].first.c_str());
-
-        if (connect(senderSocketFd, (sockaddr *)&receiverAddress, sizeof(receiverAddress)) == -1)
-        {
-            std::cout << "Connection Error" << std::endl;
-        }
-
         if (userAccounts.find(payerName) != userAccounts.end() && userAccounts.find(payeeName) != userAccounts.end())
         {
             if (userAccounts[payerName] >= money)
             {
                 userAccounts[payerName] -= money;
                 userAccounts[payeeName] += money;
-                send(senderSocketFd, "Transfer OK\r\n", 13, 0);
+                send(onlineUsers[payerName].second, "Transfer OK\r\n", 13, 0);
             }
             else
             {
-                send(senderSocketFd, "Transfer FAIL\r\n", 15, 0);
+                send(onlineUsers[payerName].second, "Transfer FAIL\r\n", 15, 0);
             }
         }
         else
         {
-            send(senderSocketFd, "Transfer FAIL\r\n", 15, 0);
+            send(onlineUsers[payerName].second, "Transfer FAIL\r\n", 15, 0);
         }
 
         return "";

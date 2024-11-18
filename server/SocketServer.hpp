@@ -21,8 +21,8 @@ private:
   static int serverSocketFd;
   static std::string serverMode;
 
-  static std::unordered_map<std::string, int> userAccounts;                        // Username -> Balance
-  static std::unordered_map<std::string, std::pair<std::string, std::string>> onlineUsers; // Username -> <IP, Port>
+  static std::unordered_map<std::string, int> userAccounts;                                                // Username -> Balance
+  static std::unordered_map<std::string, std::pair<std::pair<std::string, std::string>, int>> onlineUsers; // Username -> <IP, Port>
 
 public:
   SocketServer(int port, std::string mode);
@@ -34,7 +34,7 @@ public:
     bool isLogin;
     std::string username;
     std::string port;
-    int ip;
+    std::string ip;
     int socketFd;
   };
 
