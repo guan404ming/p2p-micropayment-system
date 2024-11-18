@@ -9,6 +9,9 @@
 #include <map>
 #include <cerrno>
 #include <cstring>
+#include <chrono>
+#include <sstream>
+#include <iomanip>
 #include "../lib/Ascii.h"
 
 class SocketClient { 
