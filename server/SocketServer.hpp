@@ -35,6 +35,7 @@ public:
     std::string username;
     std::string port;
     int ip;
+    int socketFd;
   };
 
   void run();

@@ -58,36 +58,38 @@ void SocketServer::run()
         }
         else
         {
+            Client client;
+            client.isLogin = false;
+            client.ip = clientAddress.sin_addr.s_addr;
+            client.socketFd = clientSocketFd;
+            
             pthread_t threadId;
-            pthread_create(&threadId, nullptr, &SocketServer::createListener, &clientSocketFd);
+            pthread_create(&threadId, nullptr, &SocketServer::createListener, &client);
         }
     }
 }
 
-void *SocketServer::createListener(void *clientSocketFd)
+void *SocketServer::createListener(void *client)
 {
-    Client client;
-    client.isLogin = false;
-
     while (true)
     {
         char recvMessage[2048] = {0};
-        int clientFd = *(int *)clientSocketFd;
-        recv(clientFd, recvMessage, sizeof(recvMessage), 0);
+        Client client_ = *(Client *)client;
+        recv(client_.socketFd, recvMessage, sizeof(recvMessage), 0);
 
         std::string request(recvMessage);
-        std::string response = processRequest(request, client);
+        std::string response = processRequest(request, client_);
 
         if (!response.empty())
         {
-            send(clientFd, response.c_str(), response.size(), 0);
+            send(client_.socketFd, response.c_str(), response.size(), 0);
             std::cout << "Req: " << request << std::endl;
             std::cout << "Res: " << response << std::endl;
         }
 
         if (request == "Exit")
         {
-            close(clientFd);
+            close(client_.socketFd);
             break;
         }
     }
@@ -133,7 +135,7 @@ std::string SocketServer::processRequest(const std::string &request, Client &cli
         {
             if (onlineUsers.find(username) == onlineUsers.end())
             {
-                onlineUsers[username] = std::make_pair("127.0.0.1", portNum);
+                onlineUsers[username] = std::make_pair(client.ip, portNum);
                 client.username = username;
                 client.port = std::stoi(portNum);
                 client.isLogin = true;
