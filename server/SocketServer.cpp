@@ -111,7 +111,7 @@ void *SocketServer::createListener(void *client)
 
 std::string SocketServer::getOnlineUserList()
 {
-    std::string onlineUserList = std::to_string(onlineUsers.size()) + "\r\n";
+    std::string onlineUserList = "online num: " + std::to_string(onlineUsers.size()) + "\r\n";
 
     for (const auto &user : onlineUsers)
     {
@@ -170,7 +170,7 @@ std::string SocketServer::processRequest(const std::string &request, Client &cli
             }
 
             std::string accountBalance = std::to_string(userAccounts[username]); // 獲取用戶餘額
-            std::string serverPublicKey = "YourServerPublicKey";                 // 伺服器的公鑰
+            std::string serverPublicKey = "yourServerPublicKey";                 // 伺服器的公鑰
             std::string onlineUserList = getOnlineUserList();
 
             return accountBalance + "\r\n" + serverPublicKey + "\r\n" + onlineUserList;
@@ -184,7 +184,7 @@ std::string SocketServer::processRequest(const std::string &request, Client &cli
     {
         // 返回餘額和上線用戶清單
         std::string accountBalance = std::to_string(userAccounts[client.username]); // 獲取用戶餘額
-        std::string serverPublicKey = "YourServerPublicKey";                        // 伺服器的公鑰
+        std::string serverPublicKey = "yourServerPublicKey";                        // 伺服器的公鑰
         std::string onlineUserList = getOnlineUserList();
 
         return accountBalance + "\r\n" + serverPublicKey + "\r\n" + onlineUserList;
