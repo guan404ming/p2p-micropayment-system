@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <sstream>
 #include <cstdint>
+#include <mutex>
 
 class SocketServer
 {
@@ -20,6 +21,7 @@ private:
   static sockaddr_in serverAddress;
   static int serverSocketFd;
   static std::string serverMode;
+  static std::mutex mutex;
 
   static std::unordered_map<std::string, int> userAccounts;                                                // Username -> Balance
   static std::unordered_map<std::string, std::pair<std::pair<std::string, std::string>, int>> onlineUsers; // Username -> <IP, Port>

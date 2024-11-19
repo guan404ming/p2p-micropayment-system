@@ -9,6 +9,7 @@ int SocketServer::serverSocketFd;
 std::string SocketServer::serverMode;
 std::unordered_map<std::string, int> SocketServer::userAccounts;                                                // 用戶帳戶 <用戶名, 餘額>
 std::unordered_map<std::string, std::pair<std::pair<std::string, std::string>, int>> SocketServer::onlineUsers; // 在線用戶 <用戶名, <ip, port>>
+std::mutex SocketServer::mutex;
 
 SocketServer::SocketServer(int port, std::string mode)
 {
@@ -123,6 +124,8 @@ std::string SocketServer::getOnlineUserList()
 
 std::string SocketServer::processRequest(const std::string &request, Client &client)
 {
+    std::lock_guard<std::mutex> lock(mutex);
+    
     int hashCount = 0;
 
     if (request.find('#') != std::string::npos)
