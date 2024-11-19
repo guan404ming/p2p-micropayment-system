@@ -41,4 +41,5 @@ public:
   void run();
   static void *createListener(void *clientSocketFd);
   static std::string processRequest(const std::string &request, Client &client);
+  static std::string getOnlineUserList();
 };

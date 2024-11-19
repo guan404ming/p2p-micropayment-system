@@ -37,6 +37,7 @@ SocketServer::SocketServer(int port, std::string mode)
     }
 
     std::cout << "Server listening on port " << port << "..." << std::endl;
+    std::cout << "------------------------" << std::endl;
 }
 
 SocketServer::~SocketServer()
@@ -72,8 +73,7 @@ void SocketServer::run()
 void *SocketServer::createListener(void *client)
 {
     Client client_ = *(Client *)client;
-    std::cout << "IP" << client_.ip << std::endl;
-    
+
     while (true)
     {
         char recvMessage[2048] = {0};
@@ -85,8 +85,18 @@ void *SocketServer::createListener(void *client)
         if (!response.empty())
         {
             send(client_.socketFd, response.c_str(), response.size(), 0);
-            std::cout << "Req: " << request << std::endl;
-            std::cout << "Res: " << response << std::endl;
+            std::cout << "Client IP: " << client_.ip;
+            if (client_.isLogin)
+            {
+                std::cout << ":" << client_.port << std::endl;
+            }
+            else
+            {
+                std::cout << std::endl;
+            }
+            std::cout << "Request: " << request << std::endl;
+            std::cout << "Response: " << response << std::endl;
+            std::cout << "------------------------" << std::endl;
         }
 
         if (request == "Exit")
@@ -98,6 +108,18 @@ void *SocketServer::createListener(void *client)
 
     return nullptr;
 }
+
+std::string SocketServer::getOnlineUserList()
+{
+    std::string onlineUserList = std::to_string(onlineUsers.size()) + "\r\n";
+
+    for (const auto &user : onlineUsers)
+    {
+        onlineUserList += user.first + "#" + user.second.first.first + "#" + user.second.first.second + "\r\n";
+    }
+
+    return onlineUserList;
+};
 
 std::string SocketServer::processRequest(const std::string &request, Client &client)
 {
@@ -143,18 +165,13 @@ std::string SocketServer::processRequest(const std::string &request, Client &cli
             {
                 onlineUsers[username] = std::make_pair(std::make_pair(client.ip, portNum), client.socketFd);
                 client.username = username;
-                client.port = std::stoi(portNum);
+                client.port = portNum;
                 client.isLogin = true;
             }
 
             std::string accountBalance = std::to_string(userAccounts[username]); // 獲取用戶餘額
             std::string serverPublicKey = "YourServerPublicKey";                 // 伺服器的公鑰
-            std::string onlineUserList = std::to_string(onlineUsers.size()) + "\r\n";
-
-            for (const auto &user : onlineUsers)
-            {
-                onlineUserList += user.first + "#" + user.second.first.first + "#" + user.second.first.second + "\r\n";
-            }
+            std::string onlineUserList = getOnlineUserList();
 
             return accountBalance + "\r\n" + serverPublicKey + "\r\n" + onlineUserList;
         }
@@ -163,21 +180,16 @@ std::string SocketServer::processRequest(const std::string &request, Client &cli
             return "220 AUTH_FAIL\r\n";
         }
     }
-    else if (request == "List")
+    else if (request == "List" && client.isLogin)
     {
         // 返回餘額和上線用戶清單
         std::string accountBalance = std::to_string(userAccounts[client.username]); // 獲取用戶餘額
         std::string serverPublicKey = "YourServerPublicKey";                        // 伺服器的公鑰
-        std::string onlineUserList = std::to_string(onlineUsers.size()) + "\r\n";
-
-        for (const auto &user : onlineUsers)
-        {
-            onlineUserList += user.first + "#" + user.second.first.first + "#" + user.second.first.second + "\r\n";
-        }
+        std::string onlineUserList = getOnlineUserList();
 
         return accountBalance + "\r\n" + serverPublicKey + "\r\n" + onlineUserList;
     }
-    else if (hashCount == 2)
+    else if (hashCount == 2 && client.isLogin)
     {
         // 轉帳邏輯
         std::string payerName = request.substr(0, request.find('#'));
@@ -208,6 +220,11 @@ std::string SocketServer::processRequest(const std::string &request, Client &cli
     {
         onlineUsers.erase(client.username);
         return "Bye\r\n";
+    }
+
+    if (!client.isLogin)
+    {
+        return "Please login first\r\n";
     }
 
     return "Invalid request\r\n";
