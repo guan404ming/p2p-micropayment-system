@@ -13,6 +13,11 @@
 #include <sstream>
 #include <iomanip>
 #include "../lib/Ascii.h"
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+#include <openssl/bio.h>
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 
 class SocketClient { 
   private:
@@ -23,6 +28,11 @@ class SocketClient {
     static bool running;
     static ascii::Ascii font;
     static std::string currentUser;
+    
+    static std::string serverPublicKey;
+    static std::string publicKey;
+    static std::string privateKey;
+    static std::string peerPublicKey;
 
   public:
     SocketClient(std::string ip, int port);

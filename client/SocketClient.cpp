@@ -9,6 +9,48 @@ int SocketClient::serverSocketFd;
 bool SocketClient::running = true;
 ascii::Ascii SocketClient::font = ascii::Ascii(ascii::FontName::sevenstar);
 std::string SocketClient::currentUser = "";
+std::string SocketClient::publicKey;
+std::string SocketClient::privateKey;
+
+std::string getRSAPublicKeyString(RSA* rsa) {
+    BIO *bioPublic = BIO_new(BIO_s_mem());
+    PEM_write_bio_RSAPublicKey(bioPublic, rsa);
+    char buffer[1024] = { 0 };
+    BIO_read(bioPublic, buffer, 1024);
+    BIO_free(bioPublic);
+    return std::string(buffer);
+}
+
+std::string getRSAPrivateKeyString(RSA* rsa) {
+    BIO *bioPublic = BIO_new(BIO_s_mem());
+    PEM_write_bio_RSAPrivateKey(bioPublic, rsa, nullptr, nullptr, 0, nullptr, nullptr);
+    char buffer[1024] = { 0 };
+    BIO_read(bioPublic, buffer, 1024);
+    BIO_free(bioPublic);
+    return std::string(buffer);
+}
+
+// RSA* getRSAPublicKey(const std::string& keyString) {
+//     BIO *bioRSA = BIO_new_mem_buf(keyString.c_str(), strlen(keyString.c_str()));
+//     RSA* rsa = PEM_read_bio_RSAPublicKey(bioRSA, nullptr, nullptr, nullptr);
+//     if (!rsa) {
+//       std::cout << "Error: RSA public key" << std::endl;
+//       return nullptr;
+//     }
+//     BIO_free(bioRSA);
+//     return rsa;
+// }
+
+// RSA* getRSAPrivateKey(const std::string& keyString) {
+//     BIO *bioRSA = BIO_new_mem_buf(keyString.c_str(), strlen(keyString.c_str()));
+//     RSA* rsa = PEM_read_bio_RSAPrivateKey(bioRSA, nullptr, nullptr, nullptr);
+//     if (!rsa) {
+//       std::cout << "Error: RSA private key" << std::endl;
+//       return nullptr;
+//     }
+//     BIO_free(bioRSA);
+//     return rsa;
+// }
 
 SocketClient::SocketClient(std::string ip, int port)
 {
@@ -31,6 +73,17 @@ SocketClient::SocketClient(std::string ip, int port)
     }
 
     std::cout << "Connected to server -> " << ip << ":" << port << std::endl;
+
+    // Generate RSA key pair for the client
+    RSA* rsa = RSA_generate_key(1024, RSA_F4, nullptr, nullptr);
+    if (!rsa) {
+        throw std::runtime_error("Error generating RSA key pair.");
+    }
+    publicKey = getRSAPublicKeyString(rsa);
+    privateKey = getRSAPrivateKeyString(rsa);
+
+    std::cout << "Public Key: " << publicKey << std::endl;
+    RSA_free(rsa);
 }
 
 SocketClient::~SocketClient()
