@@ -11,46 +11,123 @@ ascii::Ascii SocketClient::font = ascii::Ascii(ascii::FontName::sevenstar);
 std::string SocketClient::currentUser = "";
 std::string SocketClient::publicKey;
 std::string SocketClient::privateKey;
+std::string SocketClient::serverPublicKey;
 
-std::string getRSAPublicKeyString(RSA* rsa) {
+std::string getRSAPublicKeyString(RSA *rsa)
+{
     BIO *bioPublic = BIO_new(BIO_s_mem());
     PEM_write_bio_RSAPublicKey(bioPublic, rsa);
-    char buffer[1024] = { 0 };
+    char buffer[1024] = {0};
     BIO_read(bioPublic, buffer, 1024);
     BIO_free(bioPublic);
     return std::string(buffer);
 }
 
-std::string getRSAPrivateKeyString(RSA* rsa) {
+std::string getRSAPrivateKeyString(RSA *rsa)
+{
     BIO *bioPublic = BIO_new(BIO_s_mem());
     PEM_write_bio_RSAPrivateKey(bioPublic, rsa, nullptr, nullptr, 0, nullptr, nullptr);
-    char buffer[1024] = { 0 };
+    char buffer[1024] = {0};
     BIO_read(bioPublic, buffer, 1024);
     BIO_free(bioPublic);
     return std::string(buffer);
 }
 
-// RSA* getRSAPublicKey(const std::string& keyString) {
-//     BIO *bioRSA = BIO_new_mem_buf(keyString.c_str(), strlen(keyString.c_str()));
-//     RSA* rsa = PEM_read_bio_RSAPublicKey(bioRSA, nullptr, nullptr, nullptr);
-//     if (!rsa) {
-//       std::cout << "Error: RSA public key" << std::endl;
-//       return nullptr;
-//     }
-//     BIO_free(bioRSA);
-//     return rsa;
-// }
+RSA *getRSAPublicKey(const std::string &keyString)
+{
+    BIO *bioRSA = BIO_new_mem_buf(keyString.c_str(), strlen(keyString.c_str()));
+    RSA *rsa = PEM_read_bio_RSAPublicKey(bioRSA, nullptr, nullptr, nullptr);
+    if (!rsa)
+    {
+        std::cout << "Error: RSA public key" << std::endl;
+        return nullptr;
+    }
+    BIO_free(bioRSA);
+    return rsa;
+}
 
-// RSA* getRSAPrivateKey(const std::string& keyString) {
-//     BIO *bioRSA = BIO_new_mem_buf(keyString.c_str(), strlen(keyString.c_str()));
-//     RSA* rsa = PEM_read_bio_RSAPrivateKey(bioRSA, nullptr, nullptr, nullptr);
-//     if (!rsa) {
-//       std::cout << "Error: RSA private key" << std::endl;
-//       return nullptr;
-//     }
-//     BIO_free(bioRSA);
-//     return rsa;
-// }
+RSA *getRSAPrivateKey(const std::string &keyString)
+{
+    BIO *bioRSA = BIO_new_mem_buf(keyString.c_str(), strlen(keyString.c_str()));
+    RSA *rsa = PEM_read_bio_RSAPrivateKey(bioRSA, nullptr, nullptr, nullptr);
+    if (!rsa)
+    {
+        std::cout << "Error: RSA private key" << std::endl;
+        return nullptr;
+    }
+    BIO_free(bioRSA);
+    return rsa;
+}
+
+std::string encryptMessage(const std::string &plaintext, const std::string &publicKey)
+{
+    RSA *rsa = getRSAPublicKey(publicKey);
+    // Convert the plaintext to unsigned char buffer
+    const unsigned char *inputBuffer = reinterpret_cast<const unsigned char *>(plaintext.c_str());
+    int inputLength = static_cast<int>(plaintext.length());
+
+    // Determine the size of the output buffer
+    int outputLength = RSA_size(rsa);
+
+    // Allocate a C-style buffer
+    unsigned char *outputBuffer = new unsigned char[outputLength]{0};
+
+    // Perform the encryption
+    int result = RSA_public_encrypt(inputLength, inputBuffer, outputBuffer, rsa, RSA_PKCS1_PADDING);
+
+    if (result == -1)
+    {
+        // Handle encryption error
+        std::cout << "Error: Encryption Failed." << std::endl;
+        delete[] outputBuffer;
+        RSA_free(rsa);
+        return "";
+    }
+
+    // Convert the encrypted data to a string for storage/transmission
+    std::string encryptedMessage(outputBuffer, outputBuffer + result);
+
+    // Clean up the allocated buffer
+    delete[] outputBuffer;
+    RSA_free(rsa);
+
+    return encryptedMessage;
+}
+
+std::string decryptMessage(const std::string &encryptedMessage, const std::string &privateKey)
+{
+    RSA *rsa = getRSAPrivateKey(privateKey);
+
+    // Convert the encrypted data to unsigned char buffer
+    const unsigned char *inputBuffer = reinterpret_cast<const unsigned char *>(encryptedMessage.c_str());
+    int inputLength = static_cast<int>(encryptedMessage.length());
+
+    // Determine the size of the output buffer
+    int outputLength = RSA_size(rsa);
+
+    // Allocate a C-style buffer
+    unsigned char *outputBuffer = new unsigned char[outputLength]{0};
+
+    // Perform the decryption
+    int result = RSA_private_decrypt(inputLength, inputBuffer, outputBuffer, rsa, RSA_PKCS1_PADDING);
+
+    if (result == -1)
+    {
+        // Handle decryption error
+        std::cout << "Error: Decryption Failed." << std::endl;
+        delete[] outputBuffer;
+        return "";
+    }
+
+    // Convert the decrypted data to a string
+    std::string decryptedMessage(outputBuffer, outputBuffer + result);
+
+    // Clean up the allocated buffer
+    delete[] outputBuffer;
+    RSA_free(rsa);
+
+    return decryptedMessage;
+}
 
 SocketClient::SocketClient(std::string ip, int port)
 {
@@ -82,7 +159,13 @@ SocketClient::SocketClient(std::string ip, int port)
     publicKey = getRSAPublicKeyString(rsa);
     privateKey = getRSAPrivateKeyString(rsa);
 
-    std::cout << "Public Key: " << publicKey << std::endl;
+
+    char recvMessage[1024] = {0};
+    recv(serverSocketFd, recvMessage, sizeof(recvMessage), 0);
+    serverPublicKey = recvMessage;
+
+    send(serverSocketFd, publicKey.c_str(), publicKey.size(), 0);
+
     RSA_free(rsa);
 }
 
@@ -338,7 +421,8 @@ void SocketClient::run()
         {
             char buffer[2048] = {0};
 
-            send(serverSocketFd, cmd.c_str(), cmd.size(), 0);
+            std::string encryptedMessage = encryptMessage(cmd, serverPublicKey);
+            send(serverSocketFd, encryptedMessage.c_str(), encryptedMessage.size(), 0);
             int bytesRead = recv(serverSocketFd, buffer, sizeof(buffer), 0);
             std::cout << buffer << std::endl;
             if (option == "EXIT" || option == "e")

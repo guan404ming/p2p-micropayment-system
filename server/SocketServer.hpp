@@ -13,6 +13,11 @@
 #include <sstream>
 #include <cstdint>
 #include <mutex>
+#include <openssl/rsa.h>
+#include <openssl/pem.h>
+#include <openssl/bio.h>
+#include <openssl/err.h>
+#include <openssl/ssl.h>
 
 class SocketServer
 {
@@ -25,6 +30,8 @@ private:
 
   static std::unordered_map<std::string, int> userAccounts;                                                // Username -> Balance
   static std::unordered_map<std::string, std::pair<std::pair<std::string, std::string>, int>> onlineUsers; // Username -> <IP, Port>
+  static std::string publicKey;
+  static std::string privateKey;
 
 public:
   SocketServer(int port, std::string mode);
@@ -38,6 +45,7 @@ public:
     std::string port;
     std::string ip;
     int socketFd;
+    std::string publicKey;
   };
 
   void run();
