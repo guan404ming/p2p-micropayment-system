@@ -2,8 +2,12 @@
 #include "SocketServer.hpp"
 #endif
 
+#ifndef UTILS_HPP
+#include "../lib/utils.hpp"
+#endif
+
 // Initialize static members
-const int BUFFER_SIZE = 4096;
+#define BUFFER_SIZE 4096
 int SocketServer::serverPort = 8000;
 sockaddr_in SocketServer::serverAddress;
 int SocketServer::serverSocketFd;
@@ -43,11 +47,11 @@ SocketServer::SocketServer(int port, std::string mode)
     std::cout << "Server listening on port " << port << "..." << std::endl;
     std::cout << "------------------------" << std::endl;
 
-    // // Generate RSA key pair for the client
-    // RSA* rsa = RSA_generate_key(1024, RSA_F4, nullptr, nullptr);
-    // if (!rsa) {
-    //     throw std::runtime_error("Error generating RSA key pair.");
-    // }
+    // Generate RSA key pair for the client
+    EVP_PKEY* rsa = generateRSAKey(1024);
+    if (!rsa) {
+        throw std::runtime_error("Error generating RSA key pair.");
+    }
 }
 
 SocketServer::~SocketServer()

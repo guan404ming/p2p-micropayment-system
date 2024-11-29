@@ -2,7 +2,7 @@
 #include "SocketClient.hpp"
 #endif
 
-const int BUFFER_SIZE = 4096;
+#define BUFFER_SIZE 4096
 std::string SocketClient::serverIp = "127.0.0.1";
 int SocketClient::serverPort = 8000;
 sockaddr_in SocketClient::serverAddress;

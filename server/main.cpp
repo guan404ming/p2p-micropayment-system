@@ -13,7 +13,6 @@ int main(int argc, char const *argv[])
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, nullptr);
     SSL_library_init();
     SSL_load_error_strings();
-    ERR_load_BIO_strings();
     OpenSSL_add_all_algorithms();
 
     SocketServer server(std::stoi(std::string(argv[1])), std::string(argv[2]));
