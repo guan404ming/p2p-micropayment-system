@@ -192,7 +192,7 @@ void SocketServer::run()
             client.ip = inet_ntoa(clientAddress.sin_addr);
             client.socketFd = clientSocketFd;
 
-            send(clientSocketFd, publicKey.c_str(), publicKey.size(), 0);
+            send(clientSocketFd, publicKey.c_str(), publicKey.length(), 0);
 
             char recvMessage[1024] = {0};
             recv(clientSocketFd, recvMessage, sizeof(recvMessage), 0);
@@ -222,7 +222,7 @@ void *SocketServer::createListener(void *client)
 
         if (!response.empty())
         {
-            send(client_.socketFd, response.c_str(), response.size(), 0);
+            send(client_.socketFd, response.c_str(), response.length(), 0);
             std::cout << "Client IP: " << client_.ip;
             if (client_.isLogin)
             {

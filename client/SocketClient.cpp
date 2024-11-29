@@ -164,7 +164,7 @@ SocketClient::SocketClient(std::string ip, int port)
     recv(serverSocketFd, recvMessage, sizeof(recvMessage), 0);
     serverPublicKey = recvMessage;
 
-    send(serverSocketFd, publicKey.c_str(), publicKey.size(), 0);
+    send(serverSocketFd, publicKey.c_str(), publicKey.length(), 0);
 
     RSA_free(rsa);
 }
@@ -385,7 +385,7 @@ void SocketClient::run()
                     std::cout << "Connection Error" << std::endl;
                 }
 
-                if (send(receiverSocketFd, cmd.c_str(), cmd.size(), 0) == -1)
+                if (send(receiverSocketFd, cmd.c_str(), cmd.length(), 0) == -1)
                 {
                     std::cout << "Send Error" << std::endl;
                 }
@@ -422,7 +422,7 @@ void SocketClient::run()
             char buffer[2048] = {0};
 
             std::string encryptedMessage = encryptMessage(cmd, serverPublicKey);
-            send(serverSocketFd, encryptedMessage.c_str(), encryptedMessage.size(), 0);
+            send(serverSocketFd, encryptedMessage.c_str(), encryptedMessage.length(), 0);
             int bytesRead = recv(serverSocketFd, buffer, sizeof(buffer), 0);
             std::cout << buffer << std::endl;
             if (option == "EXIT" || option == "e")
