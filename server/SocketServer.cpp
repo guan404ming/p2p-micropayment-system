@@ -3,6 +3,7 @@
 #endif
 
 // Initialize static members
+const int BUFFER_SIZE = 4096;
 int SocketServer::serverPort = 8000;
 sockaddr_in SocketServer::serverAddress;
 int SocketServer::serverSocketFd;
@@ -194,8 +195,8 @@ void SocketServer::run()
 
             send(clientSocketFd, publicKey.c_str(), publicKey.length(), 0);
 
-            char recvMessage[1024] = {0};
-            recv(clientSocketFd, recvMessage, sizeof(recvMessage), 0);
+            char recvMessage[BUFFER_SIZE] = {0};
+            recv(clientSocketFd, recvMessage, BUFFER_SIZE, 0);
             client.publicKey = recvMessage;
 
             std::cout << "Client key: " << client.publicKey << std::endl;
@@ -212,8 +213,8 @@ void *SocketServer::createListener(void *client)
 
     while (true)
     {
-        char recvMessage[20000] = {0};
-        recv(client_.socketFd, recvMessage, sizeof(recvMessage), 0);
+        char recvMessage[BUFFER_SIZE] = {0};
+        recv(client_.socketFd, recvMessage, BUFFER_SIZE, 0);
 
         std::string request(recvMessage);
         request = decryptMessage(request, privateKey);

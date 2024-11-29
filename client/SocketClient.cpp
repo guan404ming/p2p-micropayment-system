@@ -2,6 +2,7 @@
 #include "SocketClient.hpp"
 #endif
 
+const int BUFFER_SIZE = 4096;
 std::string SocketClient::serverIp = "127.0.0.1";
 int SocketClient::serverPort = 8000;
 sockaddr_in SocketClient::serverAddress;
@@ -159,9 +160,8 @@ SocketClient::SocketClient(std::string ip, int port)
     publicKey = getRSAPublicKeyString(rsa);
     privateKey = getRSAPrivateKeyString(rsa);
 
-
-    char recvMessage[1024] = {0};
-    recv(serverSocketFd, recvMessage, sizeof(recvMessage), 0);
+    char recvMessage[BUFFER_SIZE] = {0};
+    recv(serverSocketFd, recvMessage, BUFFER_SIZE, 0);
     serverPublicKey = recvMessage;
 
     send(serverSocketFd, publicKey.c_str(), publicKey.length(), 0);
@@ -202,11 +202,11 @@ void *SocketClient::createListener(void *serverPort)
             clientSocketFd = accept(socketFd, (struct sockaddr *)&clientInfo, &addrlen);
 
             // Receive message from client A
-            char recvMessage[20] = {0};
-            recv(clientSocketFd, recvMessage, sizeof(recvMessage), 0);
+            char recvMessage[BUFFER_SIZE] = {0};
+            recv(clientSocketFd, recvMessage, BUFFER_SIZE, 0);
 
             // Send to server
-            send(serverSocketFd, recvMessage, sizeof(recvMessage), 0);
+            send(serverSocketFd, recvMessage, BUFFER_SIZE, 0);
             close(clientSocketFd);
         }
     }
@@ -324,11 +324,11 @@ void SocketClient::run()
             }
 
             // update list
-            char list_recv[20000] = {0};
+            char list_recv[BUFFER_SIZE] = {0};
 
             std::cout << "Auto renew list from tracker before transfer..." << std::endl;
             int listSent = send(serverSocketFd, "List", 4, 0);
-            int listRead = recv(serverSocketFd, list_recv, sizeof(list_recv), 0);
+            int listRead = recv(serverSocketFd, list_recv, BUFFER_SIZE, 0);
 
             std::string list = list_recv;
 
@@ -419,11 +419,11 @@ void SocketClient::run()
 
         if (!cmd.empty())
         {
-            char buffer[2048] = {0};
+            char buffer[BUFFER_SIZE] = {0};
 
             std::string encryptedMessage = encryptMessage(cmd, serverPublicKey);
             send(serverSocketFd, encryptedMessage.c_str(), encryptedMessage.length(), 0);
-            int bytesRead = recv(serverSocketFd, buffer, sizeof(buffer), 0);
+            int bytesRead = recv(serverSocketFd, buffer, BUFFER_SIZE, 0);
             std::cout << buffer << std::endl;
             if (option == "EXIT" || option == "e")
             {
