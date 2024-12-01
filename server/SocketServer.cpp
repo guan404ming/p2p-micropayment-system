@@ -12,8 +12,8 @@ int SocketServer::serverPort = 8000;
 sockaddr_in SocketServer::serverAddress;
 int SocketServer::serverSocketFd;
 std::string SocketServer::serverMode;
-std::unordered_map<std::string, int> SocketServer::userAccounts;                                                // 用戶帳戶 <用戶名, 餘額>
-std::unordered_map<std::string, std::pair<std::pair<std::string, std::string>, int>> SocketServer::onlineUsers; // 在線用戶 <用戶名, <ip, port>>
+std::unordered_map<std::string, int> SocketServer::userAccounts;
+std::unordered_map<std::string, SocketServer::Client> SocketServer::onlineUsers;
 std::mutex SocketServer::mutex;
 std::string SocketServer::publicKey;
 std::string SocketServer::privateKey;
@@ -139,7 +139,7 @@ std::string SocketServer::getOnlineUserList()
 
     for (const auto &user : onlineUsers)
     {
-        onlineUserList += user.first + "#" + user.second.first.first + "#" + user.second.first.second + "\r\n";
+        onlineUserList += user.first + "#" + user.second.ip + "#" + user.second.port + "\r\n";
     }
 
     return onlineUserList;
@@ -188,7 +188,11 @@ std::string SocketServer::processRequest(const std::string &request, Client &cli
             }
             else
             {
-                onlineUsers[username] = std::make_pair(std::make_pair(client.ip, portNum), client.socketFd);
+                onlineUsers[username] = client;
+                onlineUsers[username].username = username;
+                onlineUsers[username].port = portNum;
+                onlineUsers[username].isLogin = true;
+
                 client.username = username;
                 client.port = portNum;
                 client.isLogin = true;
@@ -227,15 +231,15 @@ std::string SocketServer::processRequest(const std::string &request, Client &cli
             {
                 userAccounts[payerName] -= money;
                 userAccounts[payeeName] += money;
-                encryptedMessage = encryptMessage(client.publicKey, "Transfer OK\r\n");
-                send(onlineUsers[payerName].second, encryptedMessage.c_str(), encryptedMessage.length(), 0);
+                encryptedMessage = encryptMessage(onlineUsers[payerName].publicKey, "Transfer OK\r\n");
+                send(onlineUsers[payerName].socketFd, encryptedMessage.c_str(), encryptedMessage.length(), 0);
 
                 return "";
             }
         }
 
-        encryptedMessage = encryptMessage(client.publicKey, "Transfer FAIL\r\n");
-        send(onlineUsers[payerName].second, encryptedMessage.c_str(), encryptedMessage.length(), 0);
+        encryptedMessage = encryptMessage(onlineUsers[payerName].publicKey, "Transfer FAIL\r\n");
+        send(onlineUsers[payerName].socketFd, encryptedMessage.c_str(), encryptedMessage.length(), 0);
         return "";
     }
     else if (request == "Exit")
