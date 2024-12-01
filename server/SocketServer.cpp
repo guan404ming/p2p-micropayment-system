@@ -216,7 +216,7 @@ std::string SocketServer::processRequest(const std::string &request, Client &cli
     }
     else if (hashCount == 2 && client.isLogin)
     {
-        // 轉帳邏輯
+        std::string encryptedMessage = "";
         std::string payerName = request.substr(0, request.find('#'));
         std::string payeeName = request.substr(request.rfind('#') + 1);
         int money = std::stoi(request.substr(request.find('#') + 1, request.rfind('#') - request.find('#') - 1));
@@ -227,18 +227,15 @@ std::string SocketServer::processRequest(const std::string &request, Client &cli
             {
                 userAccounts[payerName] -= money;
                 userAccounts[payeeName] += money;
-                send(onlineUsers[payerName].second, "Transfer OK\r\n", 13, 0);
+                encryptedMessage = encryptMessage(client.publicKey, "Transfer OK\r\n");
+                send(onlineUsers[payerName].second, encryptedMessage.c_str(), encryptedMessage.length(), 0);
+
+                return "";
             }
-            else
-            {
-                send(onlineUsers[payerName].second, "Transfer FAIL\r\n", 15, 0);
-            }
-        }
-        else
-        {
-            send(onlineUsers[payerName].second, "Transfer FAIL\r\n", 15, 0);
         }
 
+        encryptedMessage = encryptMessage(client.publicKey, "Transfer FAIL\r\n");
+        send(onlineUsers[payerName].second, encryptedMessage.c_str(), encryptedMessage.length(), 0);
         return "";
     }
     else if (request == "Exit")

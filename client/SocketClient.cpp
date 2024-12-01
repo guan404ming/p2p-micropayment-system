@@ -86,13 +86,15 @@ void *SocketClient::createListener(void *serverPort)
         while (running)
         {
             clientSocketFd = accept(socketFd, (struct sockaddr *)&clientInfo, &addrlen);
+            send(clientSocketFd, publicKey.c_str(), publicKey.length(), 0);
 
             // Receive message from client A
             char recvMessage[BUFFER_SIZE] = {0};
-            recv(clientSocketFd, recvMessage, BUFFER_SIZE, 0);
+            int bytesRead = recv(clientSocketFd, recvMessage, BUFFER_SIZE, 0);
 
             // Send to server
-            send(serverSocketFd, recvMessage, BUFFER_SIZE, 0);
+            std::string encryptedMessage = encryptMessage(serverPublicKey, decryptMessage(privateKey, std::string(recvMessage, bytesRead)));
+            send(serverSocketFd, encryptedMessage.c_str(), encryptedMessage.length(), 0);
             close(clientSocketFd);
         }
     }
@@ -210,13 +212,14 @@ void SocketClient::run()
             }
 
             // update list
-            char list_recv[BUFFER_SIZE] = {0};
+            char buffer[BUFFER_SIZE] = {0};
 
             std::cout << "Auto renew list from tracker before transfer..." << std::endl;
-            int listSent = send(serverSocketFd, "List", 4, 0);
-            int listRead = recv(serverSocketFd, list_recv, BUFFER_SIZE, 0);
-
-            std::string list = list_recv;
+            
+            std::string encryptedMessage = encryptMessage(serverPublicKey, "List");
+            send(serverSocketFd, encryptedMessage.c_str(), encryptedMessage.length(), 0);
+            int bytesRead = recv(serverSocketFd, buffer, BUFFER_SIZE, 0);
+            std::string list = decryptMessage(privateKey, std::string(buffer, bytesRead));
 
             list = list.substr(list.find('\n') + 1);
             list = list.substr(list.find('\n') + 1);
@@ -271,17 +274,20 @@ void SocketClient::run()
                     std::cout << "Connection Error" << std::endl;
                 }
 
-                if (send(receiverSocketFd, cmd.c_str(), cmd.length(), 0) == -1)
+                int bytesRead = recv(receiverSocketFd, buffer, BUFFER_SIZE, 0);
+                std::string encryptedMessage = encryptMessage(std::string(buffer, bytesRead), cmd);
+
+                if (send(receiverSocketFd, encryptedMessage.c_str(), encryptedMessage.length(), 0) == -1)
                 {
                     std::cout << "Send Error" << std::endl;
                 }
                 else
                 {
-                    char buffer[2048] = {0};
+                    char buffer[BUFFER_SIZE] = {0};
                     std::cout << "\n----------------------------------------\n"
                               << std::endl;
-                    recv(serverSocketFd, buffer, sizeof(buffer), 0);
-                    std::cout << buffer << "\n----------------------------------------\n"
+                    int bytesRead = recv(serverSocketFd, buffer, sizeof(buffer), 0);
+                    std::cout << decryptMessage(privateKey, std::string(buffer, bytesRead)) << "\n----------------------------------------\n"
                               << std::endl;
                 }
                 cmd = "List";
