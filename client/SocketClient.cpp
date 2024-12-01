@@ -50,8 +50,8 @@ SocketClient::SocketClient(std::string ip, int port)
     privateKey = getPrivateKey(rsa);
 
     char recvMessage[BUFFER_SIZE] = {0};
-    recv(serverSocketFd, recvMessage, BUFFER_SIZE, 0);
-    serverPublicKey = recvMessage;
+    int receiveBytes = recv(serverSocketFd, recvMessage, BUFFER_SIZE, 0);
+    serverPublicKey = std::string(recvMessage, receiveBytes);
     send(serverSocketFd, publicKey.c_str(), publicKey.length(), 0);
 }
 
@@ -309,7 +309,7 @@ void SocketClient::run()
             std::string encryptedMessage = encryptMessage(serverPublicKey, cmd);
             send(serverSocketFd, encryptedMessage.c_str(), encryptedMessage.length(), 0);
             int bytesRead = recv(serverSocketFd, buffer, BUFFER_SIZE, 0);
-            std::cout << buffer << std::endl;
+            std::cout << decryptMessage(privateKey, std::string(buffer, bytesRead)) << std::endl;
             if (option == "EXIT" || option == "e")
             {
                 auto endTime = std::chrono::system_clock::now();

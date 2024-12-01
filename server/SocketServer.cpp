@@ -84,8 +84,8 @@ void SocketServer::run()
             send(clientSocketFd, publicKey.c_str(), publicKey.length(), 0);
 
             char recvMessage[BUFFER_SIZE] = {0};
-            recv(clientSocketFd, recvMessage, BUFFER_SIZE, 0);
-            client.publicKey = recvMessage;
+            int bytesReceived = recv(clientSocketFd, recvMessage, BUFFER_SIZE, 0);
+            client.publicKey = std::string(recvMessage, BUFFER_SIZE);
 
             pthread_t threadId;
             pthread_create(&threadId, nullptr, &SocketServer::createListener, &client);
@@ -100,14 +100,15 @@ void *SocketServer::createListener(void *client)
     while (true)
     {
         char recvMessage[BUFFER_SIZE] = {0};
-        recv(client_.socketFd, recvMessage, BUFFER_SIZE, 0);
+        int bytesReceived = recv(client_.socketFd, recvMessage, BUFFER_SIZE, 0);
 
-        std::string request = decryptMessage(privateKey, recvMessage);
+        std::string request = decryptMessage(privateKey, std::string(recvMessage, bytesReceived));
         std::string response = processRequest(request, client_);
+        std::string encryptedMessage = encryptMessage(client_.publicKey, response);
 
         if (!response.empty())
         {
-            send(client_.socketFd, response.c_str(), response.length(), 0);
+            send(client_.socketFd, encryptedMessage.c_str(), encryptedMessage.length(), 0);
             std::cout << "Client IP: " << client_.ip;
             if (client_.isLogin)
             {
