@@ -48,10 +48,13 @@ SocketServer::SocketServer(int port, std::string mode)
     std::cout << "------------------------" << std::endl;
 
     // Generate RSA key pair for the client
-    EVP_PKEY* rsa = generateRSAKey(1024);
-    if (!rsa) {
+    EVP_PKEY *rsa = generateRSAKey(1024);
+    if (!rsa)
+    {
         throw std::runtime_error("Error generating RSA key pair.");
     }
+    publicKey = getPublicKey(rsa);
+    privateKey = getPrivateKey(rsa);
 }
 
 SocketServer::~SocketServer()
@@ -78,13 +81,11 @@ void SocketServer::run()
             client.ip = inet_ntoa(clientAddress.sin_addr);
             client.socketFd = clientSocketFd;
 
-            // send(clientSocketFd, publicKey.c_str(), publicKey.length(), 0);
+            send(clientSocketFd, publicKey.c_str(), publicKey.length(), 0);
 
-            // char recvMessage[BUFFER_SIZE] = {0};
-            // recv(clientSocketFd, recvMessage, BUFFER_SIZE, 0);
-            // client.publicKey = recvMessage;
-
-            // std::cout << "Client key: " << client.publicKey << std::endl;
+            char recvMessage[BUFFER_SIZE] = {0};
+            recv(clientSocketFd, recvMessage, BUFFER_SIZE, 0);
+            client.publicKey = recvMessage;
 
             pthread_t threadId;
             pthread_create(&threadId, nullptr, &SocketServer::createListener, &client);
@@ -101,8 +102,7 @@ void *SocketServer::createListener(void *client)
         char recvMessage[BUFFER_SIZE] = {0};
         recv(client_.socketFd, recvMessage, BUFFER_SIZE, 0);
 
-        std::string request(recvMessage);
-        std::cout << "Decrypted message: " << request << std::endl;
+        std::string request = decryptMessage(privateKey, recvMessage);
         std::string response = processRequest(request, client_);
 
         if (!response.empty())
@@ -147,7 +147,6 @@ std::string SocketServer::getOnlineUserList()
 std::string SocketServer::processRequest(const std::string &request, Client &client)
 {
     std::lock_guard<std::mutex> lock(mutex);
-    
     int hashCount = 0;
 
     if (request.find('#') != std::string::npos)

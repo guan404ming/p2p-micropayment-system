@@ -2,6 +2,11 @@
 #include "SocketClient.hpp"
 #endif
 
+#ifndef UTILS_HPP
+#include "../lib/utils.hpp"
+#endif
+
+// Initialize static members
 #define BUFFER_SIZE 4096
 std::string SocketClient::serverIp = "127.0.0.1";
 int SocketClient::serverPort = 8000;
@@ -36,11 +41,18 @@ SocketClient::SocketClient(std::string ip, int port)
 
     std::cout << "Connected to server -> " << ip << ":" << port << std::endl;
 
-    // char recvMessage[BUFFER_SIZE] = {0};
-    // recv(serverSocketFd, recvMessage, BUFFER_SIZE, 0);
-    // serverPublicKey = recvMessage;
-    // send(serverSocketFd, publicKey.c_str(), publicKey.length(), 0);
-    // RSA_free(rsa);
+    // Generate RSA key pair for the client
+    EVP_PKEY* rsa = generateRSAKey(1024);
+    if (!rsa) {
+        throw std::runtime_error("Error generating RSA key pair.");
+    }
+    publicKey = getPublicKey(rsa);
+    privateKey = getPrivateKey(rsa);
+
+    char recvMessage[BUFFER_SIZE] = {0};
+    recv(serverSocketFd, recvMessage, BUFFER_SIZE, 0);
+    serverPublicKey = recvMessage;
+    send(serverSocketFd, publicKey.c_str(), publicKey.length(), 0);
 }
 
 SocketClient::~SocketClient()
@@ -294,7 +306,8 @@ void SocketClient::run()
         if (!cmd.empty())
         {
             char buffer[BUFFER_SIZE] = {0};
-            send(serverSocketFd, cmd.c_str(), cmd.length(), 0);
+            std::string encryptedMessage = encryptMessage(serverPublicKey, cmd);
+            send(serverSocketFd, encryptedMessage.c_str(), encryptedMessage.length(), 0);
             int bytesRead = recv(serverSocketFd, buffer, BUFFER_SIZE, 0);
             std::cout << buffer << std::endl;
             if (option == "EXIT" || option == "e")
